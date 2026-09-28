@@ -2,20 +2,18 @@ import { Octokit } from "@octokit/rest";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { isSafeRepoPath, repository } from "@/auth/file-request";
-import { oauthConfig, sameOrigin } from "@/auth/oauth";
-import { sessionFromRequest } from "@/auth/session";
+import { sameOrigin, tokenFromRequest } from "@/auth/token";
 import { createGitHubFilesTransport } from "@/file-manager/lib/github-files-transport";
 import { getHttpStatus } from "@/file-manager/lib/repo-files";
 
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
-  const config = oauthConfig();
-  if (!config || !sameOrigin(request, config)) {
+  if (!sameOrigin(request)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
-  const session = sessionFromRequest(request);
-  if (!session) return NextResponse.json({ error: "Sign in required" }, { status: 401 });
+  const token = tokenFromRequest(request);
+  if (!token) return NextResponse.json({ error: "GitHub token required" }, { status: 401 });
   if (!request.headers.get("content-type")?.startsWith("multipart/form-data")) {
     return NextResponse.json({ error: "Multipart form required" }, { status: 415 });
   }
@@ -39,7 +37,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Upload too large" }, { status: 413 });
   }
   const transport = createGitHubFilesTransport(
-    new Octokit({ auth: session.token }),
+    new Octokit({ auth: token }),
     target.data.owner,
     target.data.repo,
   );

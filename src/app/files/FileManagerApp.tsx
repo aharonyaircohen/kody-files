@@ -7,59 +7,89 @@ import { createServerFilesTransport } from "@/file-manager/lib/server-files-tran
 
 type AuthState =
   | { status: "loading" }
-  | { status: "unconfigured" }
   | { status: "signed-out" }
-  | { status: "signed-in"; login: string };
+  | { status: "signed-in"; login: string; token: string };
+
+const TOKEN_KEY = "github-files-token";
+
+async function verifyToken(token: string): Promise<string> {
+  const response = await fetch("/api/auth/token", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || typeof payload.login !== "string") {
+    throw new Error(payload.error ?? "Could not verify GitHub token");
+  }
+  return payload.login;
+}
 
 export function FileManagerApp({ initialPath }: { initialPath: string }) {
   const [queryClient] = useState(() => new QueryClient());
   const [auth, setAuth] = useState<AuthState>({ status: "loading" });
+  const [tokenDraft, setTokenDraft] = useState("");
   const [target, setTarget] = useState<{ owner: string; repo: string } | null>(null);
   const [draft, setDraft] = useState({ owner: "", repo: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const reason = new URLSearchParams(window.location.search).get("auth_error");
-    if (reason) setError("GitHub sign-in did not complete. Please try again.");
-    fetch("/api/auth/session", { cache: "no-store" })
-      .then((response) => response.json())
-      .then((session) => {
-        if (!session.configured) setAuth({ status: "unconfigured" });
-        else if (session.authenticated && typeof session.login === "string") {
-          setAuth({ status: "signed-in", login: session.login });
-          setDraft((current) => ({ ...current, owner: current.owner || session.login }));
-        } else setAuth({ status: "signed-out" });
+    const stored = sessionStorage.getItem(TOKEN_KEY);
+    if (!stored) {
+      setAuth({ status: "signed-out" });
+      return;
+    }
+    verifyToken(stored)
+      .then((login) => {
+        setAuth({ status: "signed-in", login, token: stored });
+        setDraft((current) => ({ ...current, owner: current.owner || login }));
       })
       .catch(() => {
-        setError("Could not check GitHub sign-in. Reload the page to try again.");
+        sessionStorage.removeItem(TOKEN_KEY);
+        setError("Saved token could not be verified. Enter a valid GitHub token.");
         setAuth({ status: "signed-out" });
       });
   }, []);
 
   const transport = useMemo(
-    () => target ? createServerFilesTransport(target.owner, target.repo) : null,
-    [target],
+    () => target && auth.status === "signed-in"
+      ? createServerFilesTransport(target.owner, target.repo, auth.token)
+      : null,
+    [target, auth],
   );
 
-  async function signOut() {
+  async function signIn(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     setBusy(true);
     setError("");
     try {
-      const response = await fetch("/api/auth/logout", { method: "POST" });
-      if (!response.ok) throw new Error("Sign-out failed");
-      setTarget(null);
-      setDraft({ owner: "", repo: "" });
-      setAuth({ status: "signed-out" });
-    } catch {
-      setError("Could not sign out. Please try again.");
+      const token = tokenDraft.trim();
+      const login = await verifyToken(token);
+      sessionStorage.setItem(TOKEN_KEY, token);
+      setAuth({ status: "signed-in", login, token });
+      setDraft((current) => ({ ...current, owner: current.owner || login }));
+      setTokenDraft("");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not verify GitHub token");
     } finally {
       setBusy(false);
     }
   }
 
+  function signOut() {
+    setBusy(true);
+    setError("");
+    sessionStorage.removeItem(TOKEN_KEY);
+    queryClient.clear();
+    setTarget(null);
+    setDraft({ owner: "", repo: "" });
+    setAuth({ status: "signed-out" });
+    setBusy(false);
+  }
+
   if (auth.status === "loading") {
-    return <main className="grid min-h-screen place-items-center text-muted-foreground">Checking GitHub sign-in…</main>;
+    return <main className="grid min-h-screen place-items-center text-muted-foreground">Checking GitHub token…</main>;
   }
 
   if (auth.status !== "signed-in") {
@@ -67,19 +97,24 @@ export function FileManagerApp({ initialPath }: { initialPath: string }) {
       <main className="mx-auto flex min-h-screen max-w-lg flex-col justify-center p-6">
         <h1 className="text-3xl font-semibold">GitHub Files</h1>
         {error ? <p role="alert" className="mt-4 text-destructive">{error}</p> : null}
-        {auth.status === "unconfigured" ? (
-          <p className="mt-3 text-muted-foreground">GitHub sign-in is not configured for this app.</p>
-        ) : (
-          <>
-            <p className="mt-3 text-muted-foreground">Sign in to browse and edit repositories you can access.</p>
-            <a
-              className="mt-8 rounded-lg bg-primary px-4 py-2 text-center font-medium text-primary-foreground"
-              href="/api/auth/github/start"
-            >
-              Sign in with GitHub
-            </a>
-          </>
-        )}
+        <p className="mt-3 text-muted-foreground">Enter a GitHub personal access token to browse and edit repositories it can access.</p>
+        <form className="mt-8 grid gap-4" onSubmit={signIn}>
+          <label className="grid gap-1.5 text-sm font-medium">
+            GitHub token
+            <input
+              className="rounded-lg border border-border bg-card px-3 py-2"
+              type="password"
+              autoComplete="off"
+              required
+              value={tokenDraft}
+              onChange={(event) => setTokenDraft(event.target.value)}
+            />
+          </label>
+          <button className="rounded-lg bg-primary px-4 py-2 font-medium text-primary-foreground" type="submit" disabled={busy}>
+            {busy ? "Checking token…" : "Continue"}
+          </button>
+        </form>
+        <p className="mt-4 text-sm text-muted-foreground">Stored only in this browser tab until you close it or choose Forget token.</p>
       </main>
     );
   }
@@ -90,7 +125,7 @@ export function FileManagerApp({ initialPath }: { initialPath: string }) {
         <div className="flex items-center justify-between gap-4">
           <h1 className="text-3xl font-semibold">GitHub Files</h1>
           <button className="text-sm text-muted-foreground hover:text-foreground" disabled={busy} onClick={signOut}>
-            Sign out
+            Forget token
           </button>
         </div>
         <p className="mt-2 text-muted-foreground">Signed in as {auth.login}. Enter a repository to open.</p>
@@ -139,7 +174,7 @@ export function FileManagerApp({ initialPath }: { initialPath: string }) {
             Change repository
           </button>
           <button className="text-muted-foreground hover:text-foreground" disabled={busy} onClick={signOut}>
-            Sign out
+            Forget token
           </button>
         </div>
       </div>

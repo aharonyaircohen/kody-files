@@ -7,12 +7,12 @@ interface Target {
   repo: string;
 }
 
-async function apiCall<T>(target: Target, op: string, arguments_: Record<string, unknown>): Promise<T> {
+async function apiCall<T>(target: Target, token: string, op: string, arguments_: Record<string, unknown>): Promise<T> {
   const response = await fetch("/api/files", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
     body: JSON.stringify({ ...target, op, ...arguments_ }),
-    credentials: "same-origin",
+    cache: "no-store",
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -21,16 +21,16 @@ async function apiCall<T>(target: Target, op: string, arguments_: Record<string,
   return payload.result as T;
 }
 
-export function createServerFilesTransport(owner: string, repo: string): FilesTransport {
+export function createServerFilesTransport(owner: string, repo: string, token: string): FilesTransport {
   const target = { owner, repo };
   return {
     cacheKey: `github:${owner}/${repo}`,
-    listDir: (path) => apiCall<FileEntry[]>(target, "listDir", { path }),
-    readFile: (path) => apiCall<FileContent | null>(target, "readFile", { path }),
+    listDir: (path) => apiCall<FileEntry[]>(target, token, "listDir", { path }),
+    readFile: (path) => apiCall<FileContent | null>(target, token, "readFile", { path }),
     writeFile: (path, content, options?: FileWriteOptions) =>
-      apiCall<FileWriteResult>(target, "writeFile", { path, content, expectedVersion: options?.expectedVersion }),
-    deleteFile: (path, type) => apiCall<void>(target, "deleteFile", { path, type }),
-    createFolder: (path) => apiCall<FileWriteResult>(target, "createFolder", { path }),
+      apiCall<FileWriteResult>(target, token, "writeFile", { path, content, expectedVersion: options?.expectedVersion }),
+    deleteFile: (path, type) => apiCall<void>(target, token, "deleteFile", { path, type }),
+    createFolder: (path) => apiCall<FileWriteResult>(target, token, "createFolder", { path }),
     async uploadFile(path, file) {
       const body = new FormData();
       body.set("owner", owner);
@@ -40,7 +40,8 @@ export function createServerFilesTransport(owner: string, repo: string): FilesTr
       const response = await fetch("/api/files/upload", {
         method: "POST",
         body,
-        credentials: "same-origin",
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -48,11 +49,11 @@ export function createServerFilesTransport(owner: string, repo: string): FilesTr
       }
       return payload.result as FileWriteResult;
     },
-    movePath: (mutation) => apiCall<void>(target, "movePath", { mutation }),
-    duplicatePath: (mutation) => apiCall<void>(target, "duplicatePath", { mutation }),
+    movePath: (mutation) => apiCall<void>(target, token, "movePath", { mutation }),
+    duplicatePath: (mutation) => apiCall<void>(target, token, "duplicatePath", { mutation }),
     externalUrl: (path, type) => githubFileUrl(owner, repo, path, type),
-    search: (query) => apiCall<{ results: Array<{ path: string; snippet: string; lineInFragment: number | null; url: string }>; total: number }>(target, "search", { query }),
-    history: (path, limit = 20) => apiCall<CommitInfo[]>(target, "history", { path, limit }),
-    readVersion: (path, version) => apiCall<FileContent | null>(target, "readVersion", { path, version }),
+    search: (query) => apiCall<{ results: Array<{ path: string; snippet: string; lineInFragment: number | null; url: string }>; total: number }>(target, token, "search", { query }),
+    history: (path, limit = 20) => apiCall<CommitInfo[]>(target, token, "history", { path, limit }),
+    readVersion: (path, version) => apiCall<FileContent | null>(target, token, "readVersion", { path, version }),
   };
 }

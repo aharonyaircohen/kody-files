@@ -35,9 +35,9 @@ describe("standalone File Manager boundary", () => {
     const route = readFileSync(join(ROOT, "app/api/files/route.ts"), "utf8");
     expect(core).not.toContain("createGitHubFilesTransport");
     expect(host).toContain("createServerFilesTransport");
-    expect(host).not.toContain("access_token");
+    expect(host).toContain("verifyToken");
     expect(route).toContain("createGitHubFilesTransport");
-    expect(route).toContain("sessionFromRequest");
+    expect(route).toContain("tokenFromRequest");
     expect(host).toContain("<FilesPage");
   });
 });

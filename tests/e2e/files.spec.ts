@@ -1,45 +1,34 @@
 import { expect, test } from "@playwright/test";
 
-test("shows GitHub sign-in without asking for a token", async ({ page }) => {
-  await page.route("**/api/auth/session", (route) =>
-    route.fulfill({ json: { configured: true, authenticated: false, login: null } }),
-  );
-  await page.goto("/files");
-  const signIn = page.getByRole("link", { name: "Sign in with GitHub" });
-  await expect(signIn).toBeVisible();
-  await expect(signIn).toHaveAttribute("href", "/api/auth/github/start");
-  await expect(page.getByLabel("GitHub token")).toHaveCount(0);
-});
-
-test("uses the session file API and signs out", async ({ page }) => {
+test("accepts a token, browses files, and forgets it", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  page.on("console", (message) => {
-    if (message.type() === "error") errors.push(message.text());
+  await page.route("**/api/auth/token", (route) => {
+    expect(route.request().headers().authorization).toBe("Bearer test-token");
+    return route.fulfill({ json: { login: "octocat" } });
   });
-  await page.route("**/api/auth/session", (route) =>
-    route.fulfill({ json: { configured: true, authenticated: true, login: "octocat" } }),
-  );
   await page.route("**/api/files", async (route) => {
+    expect(route.request().headers().authorization).toBe("Bearer test-token");
     const request = route.request().postDataJSON();
     const result = request.op === "listDir"
       ? [{ name: "README.md", path: "README.md", type: "file", size: 7, sha: "abc" }]
       : request.op === "readFile"
         ? {
-            path: "README.md",
-            sha: "abc",
-            size: 7,
-            content: "# Hello",
+            path: "README.md", sha: "abc", size: 7, content: "# Hello",
             base64Content: Buffer.from("# Hello").toString("base64"),
-            isBinary: false,
-            encoding: "base64",
+            isBinary: false, encoding: "base64",
           }
         : null;
     await route.fulfill({ json: { result } });
   });
-  await page.route("**/api/auth/logout", (route) => route.fulfill({ json: { ok: true } }));
 
   await page.goto("/files");
+  await expect(page.getByLabel("GitHub token")).toBeVisible();
+  await page.getByLabel("GitHub token").fill("test-token");
+  await page.getByRole("button", { name: "Continue" }).click();
+  await expect(page.getByText("Signed in as octocat")).toBeVisible();
+  expect(await page.evaluate(() => sessionStorage.getItem("github-files-token"))).toBe("test-token");
+  await page.reload();
   await expect(page.getByText("Signed in as octocat")).toBeVisible();
   await page.getByLabel("Owner").fill("octocat");
   await page.getByLabel("Repository").fill("hello-world");
@@ -47,7 +36,8 @@ test("uses the session file API and signs out", async ({ page }) => {
   await expect(page.getByText("README.md").first()).toBeVisible();
   await page.getByText("README.md").first().click();
   await expect(page.getByText("Hello", { exact: false }).first()).toBeVisible();
-  await page.getByRole("button", { name: "Sign out" }).click();
-  await expect(page.getByRole("link", { name: "Sign in with GitHub" })).toBeVisible();
+  await page.getByRole("button", { name: "Forget token" }).click();
+  await expect(page.getByLabel("GitHub token")).toBeVisible();
+  expect(await page.evaluate(() => sessionStorage.getItem("github-files-token"))).toBeNull();
   expect(errors).toEqual([]);
 });
