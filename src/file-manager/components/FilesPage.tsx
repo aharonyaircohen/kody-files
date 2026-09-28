@@ -1237,6 +1237,7 @@ export function FilesPage({
             <Button
               variant="ghost"
               size="icon"
+              className="h-9 w-9"
               title="More file actions"
               aria-label="More file actions"
             >

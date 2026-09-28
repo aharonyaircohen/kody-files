@@ -6,14 +6,13 @@ import { LogOut, SunMoon } from "lucide-react";
 import { FilesPage } from "@/file-manager";
 import { createServerFilesTransport } from "@/file-manager/lib/server-files-transport";
 import { Button } from "@/shared/ui/button";
+import { RepositoryPicker, type RepositoryChoice } from "./RepositoryPicker";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
 
@@ -27,13 +26,6 @@ const REPOSITORY_KEY = "github-files-repository";
 const THEME_KEY = "github-files-theme";
 
 type ThemePreference = "auto" | "light" | "dark";
-
-interface RepositoryChoice {
-  owner: string;
-  repo: string;
-  fullName: string;
-  private: boolean;
-}
 
 type RepositoryState =
   | { status: "loading" }
@@ -187,28 +179,19 @@ export function FileManagerApp({ initialPath }: { initialPath: string }) {
   const choices = repositoryState.status === "ready" ? repositoryState.repositories : [];
   const currentRepository = target ? `${target.owner}/${target.repo}` : "";
   const repositoryPicker = (compact: boolean) => (
-    <label className={compact ? "min-w-0" : "grid min-w-0 gap-1.5 text-sm font-medium"}>
-      {compact ? <span className="sr-only">Repository</span> : "Repository"}
-      <select
-        className="h-9 w-full min-w-0 rounded-lg border border-border bg-card px-3 text-sm text-foreground"
-        value={currentRepository}
-        onChange={(event) => selectRepository(event.target.value)}
-        disabled={repositoryState.status !== "ready" || choices.length === 0}
-      >
-        <option value="">Select a repository</option>
-        {choices.map((repository) => (
-          <option key={repository.fullName} value={repository.fullName}>
-            {repository.fullName}{repository.private ? " · Private" : ""}
-          </option>
-        ))}
-      </select>
-    </label>
+    <RepositoryPicker
+      repositories={choices}
+      currentRepository={currentRepository}
+      onSelect={selectRepository}
+      compact={compact}
+      disabled={repositoryState.status !== "ready" || choices.length === 0}
+    />
   );
 
-  const settingsMenu = (signedIn: boolean) => (
+  const settingsMenu = () => (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label="Appearance and account" title="Appearance and account">
+        <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Appearance" title="Appearance">
           <SunMoon className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
@@ -219,17 +202,14 @@ export function FileManagerApp({ initialPath }: { initialPath: string }) {
           <DropdownMenuRadioItem value="light">Light</DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="dark">Dark</DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
-        {signedIn ? (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={signOut} disabled={busy}>
-              <LogOut className="h-4 w-4" />
-              Forget token
-            </DropdownMenuItem>
-          </>
-        ) : null}
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+
+  const forgetTokenButton = (
+    <Button variant="ghost" size="icon" className="h-9 w-9" type="button" aria-label="Forget token" title="Forget token" disabled={busy} onClick={signOut}>
+      <LogOut className="h-4 w-4" />
+    </Button>
   );
 
   if (auth.status === "loading") {
@@ -241,7 +221,7 @@ export function FileManagerApp({ initialPath }: { initialPath: string }) {
       <main className="mx-auto flex min-h-screen max-w-lg flex-col justify-center p-6">
         <div className="flex items-center justify-between gap-3">
           <h1 className="text-3xl font-semibold">GitHub Files</h1>
-          {settingsMenu(false)}
+          {settingsMenu()}
         </div>
         {error ? <p role="alert" className="mt-4 text-destructive">{error}</p> : null}
         <p className="mt-3 text-muted-foreground">Enter a GitHub personal access token to browse and edit repositories it can access.</p>
@@ -271,11 +251,17 @@ export function FileManagerApp({ initialPath }: { initialPath: string }) {
       <main className="mx-auto flex min-h-screen max-w-lg flex-col justify-center p-6">
         <div className="flex items-center justify-between gap-4">
           <h1 className="text-3xl font-semibold">GitHub Files</h1>
-          {settingsMenu(true)}
+          <div className="flex items-center gap-1">
+            {settingsMenu()}
+            {forgetTokenButton}
+          </div>
         </div>
         <p className="mt-2 text-muted-foreground">Signed in as {auth.login}. Choose a repository to open.</p>
         {error ? <p role="alert" className="mt-4 text-destructive">{error}</p> : null}
-        <div className="mt-8">{repositoryPicker(false)}</div>
+        <div className="mt-8 grid gap-1.5 text-sm font-medium">
+          <span>Repository</span>
+          {repositoryPicker(false)}
+        </div>
         {repositoryState.status === "loading" ? <p className="mt-3 text-sm text-muted-foreground">Loading repositories…</p> : null}
         {repositoryState.status === "error" ? <p role="alert" className="mt-3 text-sm text-destructive">Could not load repositories. Check this token&apos;s repository access and reload.</p> : null}
         {repositoryState.status === "ready" && choices.length === 0 ? <p className="mt-3 text-sm text-muted-foreground">No repositories are available to this token.</p> : null}
@@ -296,9 +282,10 @@ export function FileManagerApp({ initialPath }: { initialPath: string }) {
             routeBase="/"
             transport={transport}
             headerActions={() => (
-              <div className="flex min-w-0 items-center gap-2">
-                <div className="w-32 min-w-0 sm:w-56">{repositoryPicker(true)}</div>
-                {settingsMenu(true)}
+              <div className="flex min-w-0 items-center gap-1">
+                <div className="w-24 min-w-0 min-[380px]:w-36 sm:w-56">{repositoryPicker(true)}</div>
+                {settingsMenu()}
+                {forgetTokenButton}
               </div>
             )}
           />
