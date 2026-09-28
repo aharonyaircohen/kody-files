@@ -11,11 +11,11 @@ test("reads a real GitHub repository with the entered token", async ({ page }) =
   await page.getByLabel("GitHub token").fill(token!);
   await page.getByRole("button", { name: "Continue" }).click();
   await expect(page.getByText("Signed in as aharonyaircohen")).toBeVisible({ timeout: 20_000 });
-  await page.getByLabel("Owner").fill("aharonyaircohen");
-  await page.getByLabel("Repository").fill("kody-chat");
-  await page.getByRole("button", { name: "Open repository" }).click();
+  await expect(page.getByLabel("Repository")).toBeEnabled({ timeout: 20_000 });
+  await page.getByLabel("Repository").selectOption("aharonyaircohen/kody-chat");
   await expect(page.getByText("README.md").first()).toBeVisible({ timeout: 20_000 });
   await page.getByText("README.md").first().click();
-  await expect(page.getByText("Kody", { exact: false }).first()).toBeVisible();
+  await page.getByRole("button", { name: "View mode" }).click();
+  await expect(page.locator(".prose h1")).toContainText("Kody");
   expect(errors).toEqual([]);
 });

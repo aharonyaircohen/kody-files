@@ -6,9 +6,11 @@ A standalone browser app for browsing and editing files in a GitHub repository. 
 
 1. Create a GitHub personal access token with access to the repositories you want to use. For private repositories, grant repository contents read and write access; code search may need additional access.
 2. Run `pnpm install` and `pnpm dev`.
-3. Open `http://localhost:3335/files`, enter the token, then enter the repository owner and name.
+3. Open `http://localhost:3335/files`, enter the token, then choose a repository from the list. Use the repository dropdown in the file workspace to switch later.
 
-No GitHub OAuth App or environment credentials are required. Like Kody Chat's browser sign-in, the token is stored in local storage so it survives reloads and browser restarts. GitHub Files uses its own storage key and does not read Kody Chat's account state. The app sends the token in the Authorization header to its same-origin server route for each file operation. The server passes it to GitHub and does not save it. **Forget token** clears the stored token and in-memory file cache. Use HTTPS when hosting the app beyond localhost. Repository contents remain in GitHub; the app has no separate file database or dashboard dependency.
+No GitHub OAuth App or environment credentials are required. Like Kody Chat's browser sign-in, the token is stored in local storage so it survives reloads and browser restarts. GitHub Files uses its own storage key and does not read Kody Chat's account state. It remembers the selected repository in the same browser. The app sends the token in the Authorization header to its same-origin server route for repository listing and file operations. The server passes it to GitHub and does not save it. **Forget token** clears the stored token, selected repository, and in-memory file cache. Use HTTPS when hosting the app beyond localhost. Repository contents remain in GitHub; the app has no separate file database or dashboard dependency.
+
+The file workspace uses Kody Chat's light and dark color palette. The theme follows the browser's color preference unless this app has a saved `github-files-theme` preference. Markdown previews use the same shared renderer and Tailwind typography plugin as Kody Chat.
 
 ## Checks
 

@@ -11,6 +11,19 @@ type AuthState =
   | { status: "signed-in"; login: string; token: string };
 
 const TOKEN_KEY = "github-files-token";
+const REPOSITORY_KEY = "github-files-repository";
+
+interface RepositoryChoice {
+  owner: string;
+  repo: string;
+  fullName: string;
+  private: boolean;
+}
+
+type RepositoryState =
+  | { status: "loading" }
+  | { status: "ready"; repositories: RepositoryChoice[] }
+  | { status: "error" };
 
 async function verifyToken(token: string): Promise<string> {
   const response = await fetch("/api/auth/token", {
@@ -25,12 +38,26 @@ async function verifyToken(token: string): Promise<string> {
   return payload.login;
 }
 
+async function listRepositories(token: string): Promise<RepositoryChoice[]> {
+  const response = await fetch("/api/repos", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !Array.isArray(payload.repositories)) {
+    throw new Error(payload.error ?? "Could not load repositories");
+  }
+  return payload.repositories;
+}
+
 export function FileManagerApp({ initialPath }: { initialPath: string }) {
   const [queryClient] = useState(() => new QueryClient());
   const [auth, setAuth] = useState<AuthState>({ status: "loading" });
   const [tokenDraft, setTokenDraft] = useState("");
   const [target, setTarget] = useState<{ owner: string; repo: string } | null>(null);
-  const [draft, setDraft] = useState({ owner: "", repo: "" });
+  const [filePath, setFilePath] = useState(initialPath);
+  const [repositoryState, setRepositoryState] = useState<RepositoryState>({ status: "loading" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -43,7 +70,6 @@ export function FileManagerApp({ initialPath }: { initialPath: string }) {
     verifyToken(stored)
       .then((login) => {
         setAuth({ status: "signed-in", login, token: stored });
-        setDraft((current) => ({ ...current, owner: current.owner || login }));
       })
       .catch(() => {
         localStorage.removeItem(TOKEN_KEY);
@@ -51,6 +77,25 @@ export function FileManagerApp({ initialPath }: { initialPath: string }) {
         setAuth({ status: "signed-out" });
       });
   }, []);
+
+  useEffect(() => {
+    if (auth.status !== "signed-in") return;
+    let cancelled = false;
+    setRepositoryState({ status: "loading" });
+    listRepositories(auth.token)
+      .then((repositories) => {
+        if (cancelled) return;
+        setRepositoryState({ status: "ready", repositories });
+        const saved = localStorage.getItem(REPOSITORY_KEY);
+        const selected = repositories.find((repository) => repository.fullName === saved);
+        if (saved && !selected) localStorage.removeItem(REPOSITORY_KEY);
+        setTarget(selected ? { owner: selected.owner, repo: selected.repo } : null);
+      })
+      .catch(() => {
+        if (!cancelled) setRepositoryState({ status: "error" });
+      });
+    return () => { cancelled = true; };
+  }, [auth]);
 
   const transport = useMemo(
     () => target && auth.status === "signed-in"
@@ -68,7 +113,6 @@ export function FileManagerApp({ initialPath }: { initialPath: string }) {
       const login = await verifyToken(token);
       localStorage.setItem(TOKEN_KEY, token);
       setAuth({ status: "signed-in", login, token });
-      setDraft((current) => ({ ...current, owner: current.owner || login }));
       setTokenDraft("");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not verify GitHub token");
@@ -81,12 +125,45 @@ export function FileManagerApp({ initialPath }: { initialPath: string }) {
     setBusy(true);
     setError("");
     localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(REPOSITORY_KEY);
     queryClient.clear();
     setTarget(null);
-    setDraft({ owner: "", repo: "" });
+    setRepositoryState({ status: "loading" });
     setAuth({ status: "signed-out" });
     setBusy(false);
   }
+
+  function selectRepository(fullName: string) {
+    if (repositoryState.status !== "ready") return;
+    const selected = repositoryState.repositories.find((repository) => repository.fullName === fullName);
+    if (!selected) return;
+    localStorage.setItem(REPOSITORY_KEY, selected.fullName);
+    queryClient.clear();
+    setTarget({ owner: selected.owner, repo: selected.repo });
+    setFilePath("");
+    window.History.prototype.replaceState.call(window.history, null, "", "/files");
+  }
+
+  const choices = repositoryState.status === "ready" ? repositoryState.repositories : [];
+  const currentRepository = target ? `${target.owner}/${target.repo}` : "";
+  const repositoryPicker = (
+    <label className="grid min-w-0 gap-1.5 text-sm font-medium">
+      Repository
+      <select
+        className="min-w-0 rounded-lg border border-border bg-card px-3 py-2 text-foreground"
+        value={currentRepository}
+        onChange={(event) => selectRepository(event.target.value)}
+        disabled={repositoryState.status !== "ready" || choices.length === 0}
+      >
+        <option value="">Select a repository</option>
+        {choices.map((repository) => (
+          <option key={repository.fullName} value={repository.fullName}>
+            {repository.fullName}{repository.private ? " · Private" : ""}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
 
   if (auth.status === "loading") {
     return <main className="grid min-h-screen place-items-center text-muted-foreground">Checking GitHub token…</main>;
@@ -128,39 +205,12 @@ export function FileManagerApp({ initialPath }: { initialPath: string }) {
             Forget token
           </button>
         </div>
-        <p className="mt-2 text-muted-foreground">Signed in as {auth.login}. Enter a repository to open.</p>
+        <p className="mt-2 text-muted-foreground">Signed in as {auth.login}. Choose a repository to open.</p>
         {error ? <p role="alert" className="mt-4 text-destructive">{error}</p> : null}
-        <form
-          className="mt-8 grid gap-4"
-          onSubmit={(event) => {
-            event.preventDefault();
-            setTarget({ owner: draft.owner.trim(), repo: draft.repo.trim() });
-          }}
-        >
-          <div className="grid grid-cols-2 gap-3">
-            <label className="grid gap-1.5 text-sm font-medium">
-              Owner
-              <input
-                className="rounded-lg border border-border bg-card px-3 py-2"
-                required
-                value={draft.owner}
-                onChange={(event) => setDraft({ ...draft, owner: event.target.value })}
-              />
-            </label>
-            <label className="grid gap-1.5 text-sm font-medium">
-              Repository
-              <input
-                className="rounded-lg border border-border bg-card px-3 py-2"
-                required
-                value={draft.repo}
-                onChange={(event) => setDraft({ ...draft, repo: event.target.value })}
-              />
-            </label>
-          </div>
-          <button className="rounded-lg bg-primary px-4 py-2 font-medium text-primary-foreground" type="submit">
-            Open repository
-          </button>
-        </form>
+        <div className="mt-8">{repositoryPicker}</div>
+        {repositoryState.status === "loading" ? <p className="mt-3 text-sm text-muted-foreground">Loading repositories…</p> : null}
+        {repositoryState.status === "error" ? <p role="alert" className="mt-3 text-sm text-destructive">Could not load repositories. Check this token&apos;s repository access and reload.</p> : null}
+        {repositoryState.status === "ready" && choices.length === 0 ? <p className="mt-3 text-sm text-muted-foreground">No repositories are available to this token.</p> : null}
       </main>
     );
   }
@@ -169,10 +219,8 @@ export function FileManagerApp({ initialPath }: { initialPath: string }) {
     <div className="flex h-screen flex-col">
       <div className="flex items-center justify-between gap-4 border-b border-border px-5 py-2 text-sm">
         <strong>GitHub Files</strong>
-        <div className="flex items-center gap-4">
-          <button className="text-muted-foreground hover:text-foreground" onClick={() => setTarget(null)}>
-            Change repository
-          </button>
+        <div className="flex min-w-0 items-center gap-4">
+          <div className="w-56 max-w-[50vw]">{repositoryPicker}</div>
           <button className="text-muted-foreground hover:text-foreground" disabled={busy} onClick={signOut}>
             Forget token
           </button>
@@ -183,7 +231,7 @@ export function FileManagerApp({ initialPath }: { initialPath: string }) {
         <div className="min-h-0 flex-1">
           <FilesPage
             key={`${target.owner}/${target.repo}`}
-            initialPath={initialPath}
+            initialPath={filePath}
             title="Files"
             subtitle={`${target.owner}/${target.repo}`}
             routeBase="/files"
