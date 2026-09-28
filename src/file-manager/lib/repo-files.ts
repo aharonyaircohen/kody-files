@@ -7,8 +7,6 @@
  *   uploadFile, searchCode, and commitsForPath — all using the user's
  *   token so permissions match their GitHub access.
  */
-"use client";
-
 import type { Octokit } from "@octokit/rest";
 import { writeGitHubFileWithRetry } from "@/shared/github/github-contents-write";
 import {

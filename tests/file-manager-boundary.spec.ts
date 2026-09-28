@@ -32,8 +32,12 @@ describe("standalone File Manager boundary", () => {
   it("keeps GitHub storage behind the transport contract", () => {
     const core = readFileSync(join(ROOT, "file-manager/components/FilesPage.tsx"), "utf8");
     const host = readFileSync(join(ROOT, "app/files/FileManagerApp.tsx"), "utf8");
+    const route = readFileSync(join(ROOT, "app/api/files/route.ts"), "utf8");
     expect(core).not.toContain("createGitHubFilesTransport");
-    expect(host).toContain("createGitHubFilesTransport");
+    expect(host).toContain("createServerFilesTransport");
+    expect(host).not.toContain("access_token");
+    expect(route).toContain("createGitHubFilesTransport");
+    expect(route).toContain("sessionFromRequest");
     expect(host).toContain("<FilesPage");
   });
 });
