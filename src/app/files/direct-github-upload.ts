@@ -1,4 +1,4 @@
-import { writeGitHubFileWithRetry } from "@/shared/github/github-contents-write";
+import { commitGitHubTreeMutation } from "@/shared/github/github-tree-commit";
 import { DEFAULT_FILE_UPLOAD_POLICY } from "@/file-manager/lib/file-upload-policy";
 import type { FileWriteResult } from "@/file-manager/lib/transport";
 
@@ -33,7 +33,7 @@ export async function uploadDirectlyToGitHub(
   file: File,
 ): Promise<FileWriteResult> {
   if (file.size > DEFAULT_FILE_UPLOAD_POLICY.maxBytes) {
-    throw new Error("File exceeds GitHub's 100 MB limit");
+    throw new Error("File exceeds the 30 MB upload limit");
   }
 
   const [content, { Octokit }] = await Promise.all([
@@ -41,12 +41,20 @@ export async function uploadDirectlyToGitHub(
     import("@octokit/rest"),
   ]);
   const octokit = new Octokit({ auth: token });
-  const result = await writeGitHubFileWithRetry(octokit, {
+  const blob = await octokit.git.createBlob({
     owner,
     repo,
-    path,
     content,
-    message: `chore: upload ${path}`,
+    encoding: "base64",
   });
-  return { version: result.sha ?? "" };
+  const repository = await octokit.repos.get({ owner, repo });
+  await commitGitHubTreeMutation(octokit, {
+    owner,
+    repo,
+    ref: repository.data.default_branch,
+  }, {
+    message: `chore: upload ${path}`,
+    buildChanges: () => [{ path, mode: "100644", type: "blob", sha: blob.data.sha }],
+  });
+  return { version: blob.data.sha };
 }

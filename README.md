@@ -39,9 +39,9 @@ The header's **Forget token** button removes the saved token and selected reposi
 | Token, selected repository, theme, and unsaved editor drafts | This browser's local storage |
 | App database | None |
 
-Repository listing and ordinary file operations pass the token through same-origin API routes to GitHub. Uploads send the file and token directly from the browser to GitHub's Contents API, avoiding Vercel's function request-body limit. The server does not have a GitHub token configured. [Architecture and request flow](docs/architecture.md).
+Repository listing and ordinary file operations pass the token through same-origin API routes to GitHub. Uploads create a Git blob and commit it through GitHub's Git Database API directly from the browser, avoiding Vercel's function request-body limit. The server does not have a GitHub token configured. [Architecture and request flow](docs/architecture.md).
 
-**Upload limit:** the UI accepts files up to 100 MiB because GitHub blocks larger regular Git objects. That is not a guarantee that the Contents API accepts every file below the cap. An upload of exactly 80,000,000 bytes through the deployed app failed with GitHub HTTP 401 while normal token requests still worked. GitHub [documents a 25 MiB limit for its browser upload UI](https://docs.github.com/en/repositories/working-with-files/managing-files/adding-a-file-to-a-repository) and recommends the command line for larger regular Git files. Kody Files does not use Git LFS.
+**Upload limit:** 30 MB (30,000,000 bytes) per file. This size passed an end-to-end upload through the mounted browser app; 40 MB failed with GitHub HTTP 401, and 50–80 MB failed with HTTP 422. GitHub's [Git Blobs API](https://docs.github.com/en/rest/git/blobs) documents a 100 MB blob limit, but its browser API request path did not accept those larger base64 payloads in live tests. Kody Files does not use Git LFS. For larger files, use a local Git clone and push, with Git LFS where appropriate.
 
 ## Develop and deploy
 

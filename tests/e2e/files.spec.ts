@@ -190,23 +190,50 @@ test("uploads a file above Vercel's request limit directly to GitHub", async ({ 
   let githubWrites = 0;
   await page.route("https://api.github.com/**", (route) => {
     const request = route.request();
+    const pathname = decodeURIComponent(new URL(request.url()).pathname);
     const corsHeaders = {
       "access-control-allow-origin": "*",
-      "access-control-allow-methods": "GET, PUT, OPTIONS",
+      "access-control-allow-methods": "GET, POST, PATCH, OPTIONS",
       "access-control-allow-headers": "Authorization, Content-Type, Accept, X-GitHub-Api-Version",
     };
     if (request.method() === "OPTIONS") return route.fulfill({ status: 204, headers: corsHeaders });
-    expect(request.method()).toBe("PUT");
-    expect(request.url()).toBe("https://api.github.com/repos/octocat/hello-world/contents/large.bin");
     expect(request.headers().authorization).toContain("test-token");
-    const body = request.postDataJSON();
-    expect(body.message).toBe("chore: upload large.bin");
-    expect(Buffer.from(body.content, "base64").length).toBe(5 * 1024 * 1024);
-    githubWrites += 1;
+    let json: Record<string, unknown>;
+    if (pathname.endsWith("/git/blobs")) {
+      expect(request.method()).toBe("POST");
+      const body = request.postDataJSON();
+      expect(body.encoding).toBe("base64");
+      expect(Buffer.from(body.content, "base64").length).toBe(5 * 1024 * 1024);
+      githubWrites += 1;
+      json = { sha: "uploaded-sha" };
+    } else if (pathname === "/repos/octocat/hello-world") {
+      json = { default_branch: "main" };
+    } else if (pathname.endsWith("/git/ref/heads/main")) {
+      json = { object: { sha: "head-sha" } };
+    } else if (pathname.endsWith("/git/commits/head-sha")) {
+      json = { tree: { sha: "tree-sha" } };
+    } else if (pathname.endsWith("/git/trees")) {
+      expect(request.postDataJSON()).toEqual({
+        base_tree: "tree-sha",
+        tree: [{ path: "large.bin", mode: "100644", type: "blob", sha: "uploaded-sha" }],
+      });
+      json = { sha: "new-tree-sha" };
+    } else if (pathname.endsWith("/git/commits")) {
+      expect(request.postDataJSON()).toEqual({
+        message: "chore: upload large.bin", tree: "new-tree-sha", parents: ["head-sha"],
+      });
+      json = { sha: "new-commit-sha" };
+    } else if (pathname.endsWith("/git/refs/heads/main")) {
+      expect(request.method()).toBe("PATCH");
+      expect(request.postDataJSON()).toEqual({ sha: "new-commit-sha", force: false });
+      json = { ref: "refs/heads/main" };
+    } else {
+      throw new Error(`Unexpected GitHub API request: ${request.method()} ${pathname}`);
+    }
     return route.fulfill({
-      status: 201,
+      status: request.method() === "POST" ? 201 : 200,
       headers: { ...corsHeaders, "content-type": "application/json" },
-      json: { content: { sha: "uploaded-sha" }, commit: { sha: "commit-sha" } },
+      json,
     });
   });
 

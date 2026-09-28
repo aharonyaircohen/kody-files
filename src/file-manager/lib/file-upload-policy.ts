@@ -4,7 +4,9 @@ export interface FileUploadPolicy {
   readonly maxBytes: number;
 }
 
-const GITHUB_BLOB_MAX_BYTES = 100 * 1024 * 1024;
+// Live browser uploads to GitHub passed at 30,000,000 bytes; 40,000,000
+// failed. Keep the UI at the largest size verified end to end.
+const GITHUB_BLOB_MAX_BYTES = 30_000_000;
 
 export const DEFAULT_FILE_UPLOAD_POLICY: FileUploadPolicy = {
   maxBytes: GITHUB_BLOB_MAX_BYTES,
@@ -36,7 +38,7 @@ export function validateUpload(
   }
 
   if (file.size > policy.maxBytes) {
-    return `Files must be at most ${Math.floor(policy.maxBytes / 1024 / 1024)} MB.`;
+    return `Files must be at most ${Math.floor(policy.maxBytes / 1_000_000)} MB.`;
   }
 
   if (policy.allowedExtensions?.length) {

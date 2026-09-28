@@ -32,7 +32,7 @@ Use it for a tree-based file workspace. Provider-specific paths, persistence, an
 
 - Every workspace needs a configured `FilesTransport` with required read operations.
 - Write controls require matching optional transport methods and authenticated write permission.
-- Uploads must satisfy the caller's extension policy and size limit; the default GitHub blob ceiling is 100 MB.
+- Uploads must satisfy the caller's extension policy and size limit; the default app policy is 30 MB, verified through the mounted browser app.
 - Paths are resolved inside the caller-provided root and route base.
 - HTML preview runs sandboxed with a restrictive Content Security Policy.
 

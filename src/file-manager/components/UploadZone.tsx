@@ -3,7 +3,7 @@
  * @domain files
  * @pattern upload-zone
  * @ai-summary Drag-and-drop file upload zone with file picker support.
- *   Handles single and multiple file uploads via the GitHub Contents API.
+ *   Handles single and multiple file uploads through the active transport.
  */
 "use client";
 

@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Octokit } from "@octokit/rest";
 import { expect, test } from "@playwright/test";
+import { DEFAULT_FILE_UPLOAD_POLICY } from "../../src/file-manager/lib/file-upload-policy";
 
 const token = process.env.GITHUB_TOKEN;
 const repository = process.env.GITHUB_FILES_TEST_REPO;
@@ -13,7 +14,7 @@ test.skip(!token || !repository || process.env.GITHUB_FILES_LIVE_UPLOAD !== "1",
 
 test("uploads a large file through the mounted app and verifies it on GitHub", async ({ page }) => {
   test.setTimeout(10 * 60 * 1000);
-  expect(Number.isInteger(sizeBytes) && sizeBytes > 0 && sizeBytes <= 100 * 1024 * 1024).toBe(true);
+  expect(Number.isInteger(sizeBytes) && sizeBytes > 0 && sizeBytes <= DEFAULT_FILE_UPLOAD_POLICY.maxBytes).toBe(true);
   const [owner, repo] = repository!.split("/");
   const path = `codex-direct-upload-${randomUUID()}.bin`;
   const tempDirectory = await mkdtemp(join(tmpdir(), "github-files-upload-"));
@@ -22,8 +23,8 @@ test("uploads a large file through the mounted app and verifies it on GitHub", a
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("response", (response) => {
-    if (response.url().startsWith(`https://api.github.com/repos/${repository}/contents/${path}`)) {
-      console.log(`GitHub upload response: ${response.status()}`);
+    if (response.url().startsWith(`https://api.github.com/repos/${repository}/git/blobs`)) {
+      console.log(`GitHub blob response: ${response.status()}`);
     }
   });
 

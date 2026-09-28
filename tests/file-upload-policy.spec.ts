@@ -18,6 +18,13 @@ describe("file upload policy", () => {
     );
   });
 
+  it("enforces the live-verified 30 MB browser upload limit", () => {
+    expect(validateUpload({ name: "asset.bin", size: 30_000_000 }, DEFAULT_FILE_UPLOAD_POLICY)).toBe(null);
+    expect(validateUpload({ name: "asset.bin", size: 30_000_001 }, DEFAULT_FILE_UPLOAD_POLICY)).toBe(
+      "Files must be at most 30 MB.",
+    );
+  });
+
   it("keeps markdown workspaces limited to markdown files", () => {
     expect(validateUpload(file("guide.MD"), MARKDOWN_FILE_UPLOAD_POLICY)).toBe(
       null,
