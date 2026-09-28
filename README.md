@@ -12,6 +12,10 @@ No GitHub OAuth App or environment credentials are required. Like Kody Chat's br
 
 The file workspace uses Kody Chat's light and dark color palette. The theme follows the browser's color preference unless this app has a saved `github-files-theme` preference. Markdown previews use the same shared renderer and Tailwind typography plugin as Kody Chat.
 
+## Deployment
+
+The production site is [files.thedigitalreality.app](https://files.thedigitalreality.app/), hosted by the `github-files` project in the `aharon-yair-cohens-projects` Vercel team. The `vercel.json` file selects the Next.js framework. To deploy a new version from this checkout, run `vercel deploy --prod`. Vercel project metadata stays in the ignored `.vercel` directory; no GitHub token or OAuth credentials are configured on the server.
+
 ## Checks
 
 ```bash
