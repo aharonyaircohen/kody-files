@@ -8,6 +8,15 @@ import { createServerFilesTransport } from "./server-files-transport";
 import { Button } from "@/shared/ui/button";
 import { RepositoryPicker, type RepositoryChoice } from "./RepositoryPicker";
 import {
+  LEGACY_REPOSITORY_KEY,
+  LEGACY_THEME_KEY,
+  LEGACY_TOKEN_KEY,
+  migrateStoredValue,
+  REPOSITORY_KEY,
+  THEME_KEY,
+  TOKEN_KEY,
+} from "./browser-storage";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuLabel,
@@ -20,10 +29,6 @@ type AuthState =
   | { status: "loading" }
   | { status: "signed-out" }
   | { status: "signed-in"; login: string; token: string };
-
-const TOKEN_KEY = "github-files-token";
-const REPOSITORY_KEY = "github-files-repository";
-const THEME_KEY = "github-files-theme";
 
 type ThemePreference = "auto" | "light" | "dark";
 
@@ -70,7 +75,7 @@ export function FileManagerApp({ initialPath }: { initialPath: string }) {
   const [themePreference, setThemePreference] = useState<ThemePreference>("auto");
 
   useEffect(() => {
-    const stored = localStorage.getItem(THEME_KEY);
+    const stored = migrateStoredValue(localStorage, THEME_KEY, LEGACY_THEME_KEY);
     setThemePreference(stored === "light" || stored === "dark" ? stored : "auto");
     const media = window.matchMedia("(prefers-color-scheme: dark)");
     const applySystemTheme = () => {
@@ -83,7 +88,7 @@ export function FileManagerApp({ initialPath }: { initialPath: string }) {
   }, []);
 
   useEffect(() => {
-    const stored = localStorage.getItem(TOKEN_KEY);
+    const stored = migrateStoredValue(localStorage, TOKEN_KEY, LEGACY_TOKEN_KEY);
     if (!stored) {
       setAuth({ status: "signed-out" });
       return;
@@ -107,7 +112,7 @@ export function FileManagerApp({ initialPath }: { initialPath: string }) {
       .then((repositories) => {
         if (cancelled) return;
         setRepositoryState({ status: "ready", repositories });
-        const saved = localStorage.getItem(REPOSITORY_KEY);
+        const saved = migrateStoredValue(localStorage, REPOSITORY_KEY, LEGACY_REPOSITORY_KEY);
         const selected = repositories.find((repository) => repository.fullName === saved);
         if (saved && !selected) localStorage.removeItem(REPOSITORY_KEY);
         setTarget(selected ? { owner: selected.owner, repo: selected.repo } : null);
@@ -220,7 +225,7 @@ export function FileManagerApp({ initialPath }: { initialPath: string }) {
     return (
       <main className="mx-auto flex min-h-screen max-w-lg flex-col justify-center p-6">
         <div className="flex items-center justify-between gap-3">
-          <h1 className="text-3xl font-semibold">GitHub Files</h1>
+          <h1 className="text-3xl font-semibold">Kody Files</h1>
           {settingsMenu()}
         </div>
         {error ? <p role="alert" className="mt-4 text-destructive">{error}</p> : null}
@@ -250,7 +255,7 @@ export function FileManagerApp({ initialPath }: { initialPath: string }) {
     return (
       <main className="mx-auto flex min-h-screen max-w-lg flex-col justify-center p-6">
         <div className="flex items-center justify-between gap-4">
-          <h1 className="text-3xl font-semibold">GitHub Files</h1>
+          <h1 className="text-3xl font-semibold">Kody Files</h1>
           <div className="flex items-center gap-1">
             {settingsMenu()}
             {forgetTokenButton}

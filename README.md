@@ -1,4 +1,4 @@
-# GitHub Files
+# Kody Files
 
 A standalone browser app for browsing and editing files in a GitHub repository. It includes a tree, search, Monaco and Markdown editors, upload, create, rename, move, copy, delete, commit history, and file previews.
 
@@ -8,15 +8,15 @@ A standalone browser app for browsing and editing files in a GitHub repository. 
 2. Run `pnpm install` and `pnpm dev`.
 3. Open `http://localhost:3335/`, enter the token, then choose a repository from the searchable list. Use the repository dropdown in the file workspace to switch later. The header's **Forget token** icon clears the saved token. File links use `/?path=...` so repository paths cannot conflict with the app's API routes.
 
-No GitHub OAuth App or environment credentials are required. Like Kody Chat's browser sign-in, the token is stored in local storage so it survives reloads and browser restarts. GitHub Files uses its own storage key and does not read Kody Chat's account state. It remembers the selected repository in the same browser. Repository listing and ordinary file operations send the token through same-origin server routes, which pass it to GitHub without saving it. File uploads send the file and token directly from the browser to GitHub's Contents API, avoiding Vercel's function payload limit. **Forget token** clears the stored token, selected repository, and in-memory file cache. Use HTTPS when hosting the app beyond localhost. Repository contents remain in GitHub; the app has no separate file database or dashboard dependency.
+No GitHub OAuth App or environment credentials are required. Like Kody Chat's browser sign-in, the token is stored in local storage so it survives reloads and browser restarts. Kody Files uses its own storage key and does not read Kody Chat's account state. Existing GitHub Files token, repository, and theme preferences migrate in the same browser. It remembers the selected repository in the same browser. Repository listing and ordinary file operations send the token through same-origin server routes, which pass it to GitHub without saving it. File uploads send the file and token directly from the browser to GitHub's Contents API, avoiding Vercel's function payload limit. **Forget token** clears the stored token, selected repository, and in-memory file cache. Use HTTPS when hosting the app beyond localhost. Repository contents remain in GitHub; the app has no separate file database or dashboard dependency.
 
 The 100 MiB upload validation cap is a [Git repository file limit](https://docs.github.com/en/repositories/working-with-files/managing-large-files/about-large-files-on-github), not a guarantee that the Contents API accepts every file below it. A live upload of exactly 80,000,000 bytes through the deployed app failed with GitHub HTTP 401; the same token continued to work for normal API calls. GitHub [documents a 25 MiB limit for uploads in its browser UI](https://docs.github.com/en/repositories/working-with-files/managing-files/adding-a-file-to-a-repository) and recommends the command line for larger regular Git files.
 
-The file workspace uses Kody Chat's light and dark color palette. The theme follows the browser's color preference unless this app has a saved `github-files-theme` preference. Markdown previews use the same shared renderer and Tailwind typography plugin as Kody Chat.
+The file workspace uses Kody Chat's light and dark color palette. The theme follows the browser's color preference unless this app has a saved `kody-files-theme` preference. Markdown previews use the same shared renderer and Tailwind typography plugin as Kody Chat. Existing editor drafts keep their storage keys so in-progress edits survive the rename.
 
 ## Deployment
 
-The production site is [files.thedigitalreality.app](https://files.thedigitalreality.app/), hosted by the `github-files` project in the `aharon-yair-cohens-projects` Vercel team. The `vercel.json` file selects the Next.js framework. To deploy a new version from this checkout, run `vercel deploy --prod`. Vercel project metadata stays in the ignored `.vercel` directory; no GitHub token or OAuth credentials are configured on the server.
+The production site is [files.thedigitalreality.app](https://files.thedigitalreality.app/), hosted by the `kody-files` project in the `aharon-yair-cohens-projects` Vercel team. The `vercel.json` file selects the Next.js framework. To deploy a new version from this checkout, run `vercel deploy --prod`. Vercel project metadata stays in the ignored `.vercel` directory; no GitHub token or OAuth credentials are configured on the server.
 
 ## Checks
 
