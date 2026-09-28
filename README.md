@@ -1,33 +1,57 @@
 # Kody Files
 
-A standalone browser app for browsing and editing files in a GitHub repository. It includes a tree, search, Monaco and Markdown editors, upload, create, rename, move, copy, delete, commit history, and file previews.
+Kody Files is a standalone file manager for GitHub repositories. Browse a repository, preview documents, edit text, search, and manage files from one browser workspace. Sign in with a GitHub personal access token; no OAuth app or Kody account is required.
 
-## Run
+**[Open the hosted app](https://files.thedigitalreality.app/)** · [How it works](docs/architecture.md) · [Contributing](CONTRIBUTING.md)
 
-1. Create a GitHub personal access token with access to the repositories you want to use. For private repositories, grant repository contents read and write access; code search may need additional access.
-2. Run `pnpm install` and `pnpm dev`.
-3. Open `http://localhost:3335/`, enter the token, then choose a repository from the searchable list. Use the repository dropdown in the file workspace to switch later. The header's **Forget token** icon clears the saved token. File links use `/?path=...` so repository paths cannot conflict with the app's API routes.
+![Kody Files showing a Markdown preview and repository tree](docs/screenshots/workspace-light.png)
 
-No GitHub OAuth App or environment credentials are required. Like Kody Chat's browser sign-in, the token is stored in local storage so it survives reloads and browser restarts. Kody Files uses its own storage key and does not read Kody Chat's account state. Existing GitHub Files token, repository, and theme preferences migrate in the same browser. It remembers the selected repository in the same browser. Repository listing and ordinary file operations send the token through same-origin server routes, which pass it to GitHub without saving it. File uploads send the file and token directly from the browser to GitHub's Contents API, avoiding Vercel's function payload limit. **Forget token** clears the stored token, selected repository, and in-memory file cache. Use HTTPS when hosting the app beyond localhost. Repository contents remain in GitHub; the app has no separate file database or dashboard dependency.
+## Features
 
-The 100 MiB upload validation cap is a [Git repository file limit](https://docs.github.com/en/repositories/working-with-files/managing-large-files/about-large-files-on-github), not a guarantee that the Contents API accepts every file below it. A live upload of exactly 80,000,000 bytes through the deployed app failed with GitHub HTTP 401; the same token continued to work for normal API calls. GitHub [documents a 25 MiB limit for uploads in its browser UI](https://docs.github.com/en/repositories/working-with-files/managing-files/adding-a-file-to-a-repository) and recommends the command line for larger regular Git files.
+- Browse folders and switch repositories from a searchable dropdown.
+- Preview Markdown, code, images, PDF, audio, video, HTML, and supported office/archive formats.
+- Edit text with Monaco and view Markdown as formatted content.
+- Create, upload, rename, move, copy, and delete files; inspect commit history where supported.
+- Choose a light, dark, or system theme. The layout also works on narrow screens.
 
-The file workspace uses Kody Chat's light and dark color palette. The theme follows the browser's color preference unless this app has a saved `kody-files-theme` preference. Markdown previews use the same shared renderer and Tailwind typography plugin as Kody Chat. Existing editor drafts keep their storage keys so in-progress edits survive the rename.
+The screenshots use **sample data and a fake token**. They contain no real repository content or credentials. See the [sign-in screen](docs/screenshots/sign-in.png), [repository picker](docs/screenshots/repository-picker.png), and [dark theme](docs/screenshots/workspace-dark.png).
 
-## Deployment
+## Run locally
 
-The production site is [files.thedigitalreality.app](https://files.thedigitalreality.app/), hosted by the `kody-files` project in the `aharon-yair-cohens-projects` Vercel team. The `vercel.json` file selects the Next.js framework. To deploy a new version from this checkout, run `vercel deploy --prod`. Vercel project metadata stays in the ignored `.vercel` directory; no GitHub token or OAuth credentials are configured on the server.
-
-## Checks
+You need Node.js 24 and pnpm 9. No environment variables are needed for normal use.
 
 ```bash
-pnpm typecheck
-pnpm lint
-pnpm test
-pnpm build
-pnpm test:e2e
+git clone https://github.com/aharonyaircohen/kody-files.git
+cd kody-files
+pnpm install --frozen-lockfile
+pnpm dev
 ```
 
-The browser suite includes a mocked token and file journey. Its live GitHub read journey requires a running app at `http://localhost:3335/` and a test process `GITHUB_TOKEN`; it enters that token in the UI.
+Open [http://localhost:3335/](http://localhost:3335/). Enter a GitHub personal access token that can access the repositories you want to use. To edit files, the token needs repository contents write permission. For a fine-grained token, select the intended repositories and grant **Contents: read and write**. Use the smallest repository scope you need. The app verifies the token, lists accessible repositories, and lets you select one.
 
-The archive preview worker and Wasm files are in `public/vendor/libarchive`; their license is included beside them.
+The header's **Forget token** button removes the saved token and selected repository from this browser. Read [SECURITY.md](SECURITY.md) before using the app with sensitive repositories.
+
+## How data is stored
+
+| Data | Location |
+| --- | --- |
+| Repository files and history | GitHub |
+| Token, selected repository, theme, and unsaved editor drafts | This browser's local storage |
+| App database | None |
+
+Repository listing and ordinary file operations pass the token through same-origin API routes to GitHub. Uploads send the file and token directly from the browser to GitHub's Contents API, avoiding Vercel's function request-body limit. The server does not have a GitHub token configured. [Architecture and request flow](docs/architecture.md).
+
+**Upload limit:** the UI accepts files up to 100 MiB because GitHub blocks larger regular Git objects. That is not a guarantee that the Contents API accepts every file below the cap. An upload of exactly 80,000,000 bytes through the deployed app failed with GitHub HTTP 401 while normal token requests still worked. GitHub [documents a 25 MiB limit for its browser upload UI](https://docs.github.com/en/repositories/working-with-files/managing-files/adding-a-file-to-a-repository) and recommends the command line for larger regular Git files. Kody Files does not use Git LFS.
+
+## Develop and deploy
+
+- [Development and testing](docs/development.md)
+- [Architecture and file manager transport](docs/architecture.md)
+- [Deployment](docs/deployment.md)
+- [Contributing](CONTRIBUTING.md) · [Security policy](SECURITY.md) · [Code of conduct](CODE_OF_CONDUCT.md)
+
+The UI follows Kody Chat's color palette and Markdown formatting. Existing browser settings from the former GitHub Files name migrate automatically; saved editor drafts keep their original storage keys.
+
+## License
+
+Kody Files is [MIT licensed](LICENSE). The file manager was adapted from the MIT-licensed Kody Dashboard; its original copyright is retained in the license. See [third-party notices](THIRD_PARTY_NOTICES.md) for the bundled libarchive preview files and dependency audit command.

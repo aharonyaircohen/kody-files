@@ -1,0 +1,33 @@
+name: Bug report
+description: Report a reproducible problem without sharing tokens or private files.
+title: "Bug: "
+labels: [bug]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe the observed behavior and what you expected.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Use a public or sample repository. Remove credentials and private content.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      placeholder: Commit SHA or deployment URL
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and operating system
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Screenshots or logs
+      description: Redact tokens, repository names, and private file contents before attaching.

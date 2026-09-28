@@ -1,0 +1,19 @@
+name: Feature request
+description: Suggest an improvement to Kody Files.
+title: "Feature: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: Describe the task and where the current workflow stops.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Include an example if it helps explain the request.
+    validations:
+      required: true
