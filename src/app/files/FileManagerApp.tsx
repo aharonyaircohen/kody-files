@@ -35,7 +35,7 @@ export function FileManagerApp({ initialPath }: { initialPath: string }) {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const stored = sessionStorage.getItem(TOKEN_KEY);
+    const stored = localStorage.getItem(TOKEN_KEY);
     if (!stored) {
       setAuth({ status: "signed-out" });
       return;
@@ -46,7 +46,7 @@ export function FileManagerApp({ initialPath }: { initialPath: string }) {
         setDraft((current) => ({ ...current, owner: current.owner || login }));
       })
       .catch(() => {
-        sessionStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(TOKEN_KEY);
         setError("Saved token could not be verified. Enter a valid GitHub token.");
         setAuth({ status: "signed-out" });
       });
@@ -66,7 +66,7 @@ export function FileManagerApp({ initialPath }: { initialPath: string }) {
     try {
       const token = tokenDraft.trim();
       const login = await verifyToken(token);
-      sessionStorage.setItem(TOKEN_KEY, token);
+      localStorage.setItem(TOKEN_KEY, token);
       setAuth({ status: "signed-in", login, token });
       setDraft((current) => ({ ...current, owner: current.owner || login }));
       setTokenDraft("");
@@ -80,7 +80,7 @@ export function FileManagerApp({ initialPath }: { initialPath: string }) {
   function signOut() {
     setBusy(true);
     setError("");
-    sessionStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(TOKEN_KEY);
     queryClient.clear();
     setTarget(null);
     setDraft({ owner: "", repo: "" });
@@ -114,7 +114,7 @@ export function FileManagerApp({ initialPath }: { initialPath: string }) {
             {busy ? "Checking token…" : "Continue"}
           </button>
         </form>
-        <p className="mt-4 text-sm text-muted-foreground">Stored only in this browser tab until you close it or choose Forget token.</p>
+        <p className="mt-4 text-sm text-muted-foreground">Saved in this browser until you choose Forget token.</p>
       </main>
     );
   }

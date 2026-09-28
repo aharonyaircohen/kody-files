@@ -8,7 +8,7 @@ A standalone browser app for browsing and editing files in a GitHub repository. 
 2. Run `pnpm install` and `pnpm dev`.
 3. Open `http://localhost:3335/files`, enter the token, then enter the repository owner and name.
 
-No GitHub OAuth App or environment credentials are required. The token is stored in this browser tab's session storage so reloads and file navigation work. The app sends it in the Authorization header to its same-origin server route for each file operation. The server passes it to GitHub and does not save it. **Forget token** clears the tab's stored token and in-memory file cache. Closing the tab clears the session storage. Use HTTPS when hosting the app beyond localhost. Repository contents remain in GitHub; the app has no separate file database or dashboard dependency.
+No GitHub OAuth App or environment credentials are required. Like Kody Chat's browser sign-in, the token is stored in local storage so it survives reloads and browser restarts. GitHub Files uses its own storage key and does not read Kody Chat's account state. The app sends the token in the Authorization header to its same-origin server route for each file operation. The server passes it to GitHub and does not save it. **Forget token** clears the stored token and in-memory file cache. Use HTTPS when hosting the app beyond localhost. Repository contents remain in GitHub; the app has no separate file database or dashboard dependency.
 
 ## Checks
 

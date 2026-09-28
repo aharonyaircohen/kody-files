@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("accepts a token, browses files, and forgets it", async ({ page }) => {
+test("accepts a persistent token, browses files, and forgets it", async ({ page, context }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.route("**/api/auth/token", (route) => {
@@ -27,7 +27,9 @@ test("accepts a token, browses files, and forgets it", async ({ page }) => {
   await page.getByLabel("GitHub token").fill("test-token");
   await page.getByRole("button", { name: "Continue" }).click();
   await expect(page.getByText("Signed in as octocat")).toBeVisible();
-  expect(await page.evaluate(() => sessionStorage.getItem("github-files-token"))).toBe("test-token");
+  expect(await page.evaluate(() => localStorage.getItem("github-files-token"))).toBe("test-token");
+  const savedOrigin = (await context.storageState()).origins.find((entry) => entry.origin === "http://localhost:3335");
+  expect(savedOrigin?.localStorage).toContainEqual({ name: "github-files-token", value: "test-token" });
   await page.reload();
   await expect(page.getByText("Signed in as octocat")).toBeVisible();
   await page.getByLabel("Owner").fill("octocat");
@@ -38,6 +40,6 @@ test("accepts a token, browses files, and forgets it", async ({ page }) => {
   await expect(page.getByText("Hello", { exact: false }).first()).toBeVisible();
   await page.getByRole("button", { name: "Forget token" }).click();
   await expect(page.getByLabel("GitHub token")).toBeVisible();
-  expect(await page.evaluate(() => sessionStorage.getItem("github-files-token"))).toBeNull();
+  expect(await page.evaluate(() => localStorage.getItem("github-files-token"))).toBeNull();
   expect(errors).toEqual([]);
 });
