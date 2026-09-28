@@ -43,6 +43,8 @@ GITHUB_TOKEN=... GITHUB_FILES_TEST_REPO=owner/disposable-repo \
 
 Do not put a token in a committed file or paste it into a public issue. The CI workflow runs lint, typecheck, unit tests, build, and mocked browser tests without credentials.
 
+Future version tags run the same checks before GitHub publishes a release. See [releases](releases.md).
+
 ## Documentation screenshots
 
 The checked-in screenshots are generated from mock API responses and a fake token. Start the local app, then run:

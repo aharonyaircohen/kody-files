@@ -2,7 +2,12 @@ name: CI
 
 on:
   push:
+    branches: [main]
   pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
 
 jobs:
   verify:
@@ -29,6 +34,7 @@ jobs:
             if curl --fail --silent http://localhost:3335/ > /dev/null; then
               exit 0
             fi
+            echo "Waiting for local app ($attempt/30)"
             sleep 1
           done
           cat /tmp/kody-files-next.log

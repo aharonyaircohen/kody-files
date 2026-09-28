@@ -48,6 +48,7 @@ Repository listing and ordinary file operations pass the token through same-orig
 - [Development and testing](docs/development.md)
 - [Architecture and file manager transport](docs/architecture.md)
 - [Deployment](docs/deployment.md)
+- [Releases](docs/releases.md)
 - [Contributing](CONTRIBUTING.md) · [Security policy](SECURITY.md) · [Code of conduct](CODE_OF_CONDUCT.md)
 
 The UI follows Kody Chat's color palette and Markdown formatting. Existing browser settings from the former GitHub Files name migrate automatically; saved editor drafts keep their original storage keys.
