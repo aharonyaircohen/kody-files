@@ -421,6 +421,9 @@ export function FilesPage({
               ? "editor"
               : "viewer",
           );
+          if (window.matchMedia("(max-width: 639px)").matches) {
+            setPanelState("hidden");
+          }
           if (file.path !== normalizedPath) {
             updateFileHref(file.path, { replace: true });
           }
@@ -433,6 +436,9 @@ export function FilesPage({
         setSelectedPath(resolvedPath);
         setSelectedFile(null);
         setViewMode("viewer");
+        if (window.matchMedia("(max-width: 639px)").matches) {
+          setPanelState("hidden");
+        }
         if (resolvedPath !== normalizedPath) {
           updateFileHref(resolvedPath, { replace: true });
         }
@@ -1348,7 +1354,7 @@ export function FilesPage({
         >
           {/* Left panel - file tree */}
           {panelState !== "hidden" ? (
-            <div className="h-full w-80 shrink-0 border-r border-border bg-card/30 xl:w-[22rem]">
+            <div className="h-full w-full shrink-0 border-r border-border bg-card/30 sm:w-80 xl:w-[22rem]">
               <FileTree
                 onFileSelect={(path) =>
                   openRepoPath(path, { typeHint: "file" })
@@ -1383,7 +1389,7 @@ export function FilesPage({
           ) : null}
 
           {/* Right panel - content */}
-          <div className="flex h-full min-w-0 flex-1 flex-col bg-background">
+          <div className={cn("h-full min-w-0 flex-1 flex-col bg-background", panelState === "hidden" ? "flex" : "hidden sm:flex")}>
             {/* Breadcrumb */}
             {shouldShowWorkspaceLocation(selectedPathType, viewMode) ? (
               <div className="flex min-h-14 shrink-0 items-center gap-1 border-b border-border px-5">

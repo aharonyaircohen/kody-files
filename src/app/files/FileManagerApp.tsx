@@ -2,8 +2,20 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { LogOut, SunMoon } from "lucide-react";
 import { FilesPage } from "@/file-manager";
 import { createServerFilesTransport } from "@/file-manager/lib/server-files-transport";
+import { Button } from "@/shared/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/shared/ui/dropdown-menu";
 
 type AuthState =
   | { status: "loading" }
@@ -12,6 +24,9 @@ type AuthState =
 
 const TOKEN_KEY = "github-files-token";
 const REPOSITORY_KEY = "github-files-repository";
+const THEME_KEY = "github-files-theme";
+
+type ThemePreference = "auto" | "light" | "dark";
 
 interface RepositoryChoice {
   owner: string;
@@ -60,6 +75,20 @@ export function FileManagerApp({ initialPath }: { initialPath: string }) {
   const [repositoryState, setRepositoryState] = useState<RepositoryState>({ status: "loading" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [themePreference, setThemePreference] = useState<ThemePreference>("auto");
+
+  useEffect(() => {
+    const stored = localStorage.getItem(THEME_KEY);
+    setThemePreference(stored === "light" || stored === "dark" ? stored : "auto");
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const applySystemTheme = () => {
+      if (!localStorage.getItem(THEME_KEY)) {
+        document.documentElement.setAttribute("data-theme", media.matches ? "dark" : "light");
+      }
+    };
+    media.addEventListener("change", applySystemTheme);
+    return () => media.removeEventListener("change", applySystemTheme);
+  }, []);
 
   useEffect(() => {
     const stored = localStorage.getItem(TOKEN_KEY);
@@ -133,6 +162,17 @@ export function FileManagerApp({ initialPath }: { initialPath: string }) {
     setBusy(false);
   }
 
+  function changeTheme(value: string) {
+    if (value !== "auto" && value !== "light" && value !== "dark") return;
+    setThemePreference(value);
+    if (value === "auto") localStorage.removeItem(THEME_KEY);
+    else localStorage.setItem(THEME_KEY, value);
+    const resolved = value === "auto"
+      ? window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
+      : value;
+    document.documentElement.setAttribute("data-theme", resolved);
+  }
+
   function selectRepository(fullName: string) {
     if (repositoryState.status !== "ready") return;
     const selected = repositoryState.repositories.find((repository) => repository.fullName === fullName);
@@ -146,11 +186,11 @@ export function FileManagerApp({ initialPath }: { initialPath: string }) {
 
   const choices = repositoryState.status === "ready" ? repositoryState.repositories : [];
   const currentRepository = target ? `${target.owner}/${target.repo}` : "";
-  const repositoryPicker = (
-    <label className="grid min-w-0 gap-1.5 text-sm font-medium">
-      Repository
+  const repositoryPicker = (compact: boolean) => (
+    <label className={compact ? "min-w-0" : "grid min-w-0 gap-1.5 text-sm font-medium"}>
+      {compact ? <span className="sr-only">Repository</span> : "Repository"}
       <select
-        className="min-w-0 rounded-lg border border-border bg-card px-3 py-2 text-foreground"
+        className="h-9 w-full min-w-0 rounded-lg border border-border bg-card px-3 text-sm text-foreground"
         value={currentRepository}
         onChange={(event) => selectRepository(event.target.value)}
         disabled={repositoryState.status !== "ready" || choices.length === 0}
@@ -165,6 +205,33 @@ export function FileManagerApp({ initialPath }: { initialPath: string }) {
     </label>
   );
 
+  const settingsMenu = (signedIn: boolean) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" aria-label="Appearance and account" title="Appearance and account">
+          <SunMoon className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-44">
+        <DropdownMenuLabel>Theme</DropdownMenuLabel>
+        <DropdownMenuRadioGroup value={themePreference} onValueChange={changeTheme}>
+          <DropdownMenuRadioItem value="auto">System</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="light">Light</DropdownMenuRadioItem>
+          <DropdownMenuRadioItem value="dark">Dark</DropdownMenuRadioItem>
+        </DropdownMenuRadioGroup>
+        {signedIn ? (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={signOut} disabled={busy}>
+              <LogOut className="h-4 w-4" />
+              Forget token
+            </DropdownMenuItem>
+          </>
+        ) : null}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
   if (auth.status === "loading") {
     return <main className="grid min-h-screen place-items-center text-muted-foreground">Checking GitHub token…</main>;
   }
@@ -172,7 +239,10 @@ export function FileManagerApp({ initialPath }: { initialPath: string }) {
   if (auth.status !== "signed-in") {
     return (
       <main className="mx-auto flex min-h-screen max-w-lg flex-col justify-center p-6">
-        <h1 className="text-3xl font-semibold">GitHub Files</h1>
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-3xl font-semibold">GitHub Files</h1>
+          {settingsMenu(false)}
+        </div>
         {error ? <p role="alert" className="mt-4 text-destructive">{error}</p> : null}
         <p className="mt-3 text-muted-foreground">Enter a GitHub personal access token to browse and edit repositories it can access.</p>
         <form className="mt-8 grid gap-4" onSubmit={signIn}>
@@ -201,13 +271,11 @@ export function FileManagerApp({ initialPath }: { initialPath: string }) {
       <main className="mx-auto flex min-h-screen max-w-lg flex-col justify-center p-6">
         <div className="flex items-center justify-between gap-4">
           <h1 className="text-3xl font-semibold">GitHub Files</h1>
-          <button className="text-sm text-muted-foreground hover:text-foreground" disabled={busy} onClick={signOut}>
-            Forget token
-          </button>
+          {settingsMenu(true)}
         </div>
         <p className="mt-2 text-muted-foreground">Signed in as {auth.login}. Choose a repository to open.</p>
         {error ? <p role="alert" className="mt-4 text-destructive">{error}</p> : null}
-        <div className="mt-8">{repositoryPicker}</div>
+        <div className="mt-8">{repositoryPicker(false)}</div>
         {repositoryState.status === "loading" ? <p className="mt-3 text-sm text-muted-foreground">Loading repositories…</p> : null}
         {repositoryState.status === "error" ? <p role="alert" className="mt-3 text-sm text-destructive">Could not load repositories. Check this token&apos;s repository access and reload.</p> : null}
         {repositoryState.status === "ready" && choices.length === 0 ? <p className="mt-3 text-sm text-muted-foreground">No repositories are available to this token.</p> : null}
@@ -217,15 +285,6 @@ export function FileManagerApp({ initialPath }: { initialPath: string }) {
 
   return (
     <div className="flex h-screen flex-col">
-      <div className="flex items-center justify-between gap-4 border-b border-border px-5 py-2 text-sm">
-        <strong>GitHub Files</strong>
-        <div className="flex min-w-0 items-center gap-4">
-          <div className="w-56 max-w-[50vw]">{repositoryPicker}</div>
-          <button className="text-muted-foreground hover:text-foreground" disabled={busy} onClick={signOut}>
-            Forget token
-          </button>
-        </div>
-      </div>
       {error ? <p role="alert" className="px-5 py-2 text-destructive">{error}</p> : null}
       <QueryClientProvider client={queryClient}>
         <div className="min-h-0 flex-1">
@@ -233,9 +292,15 @@ export function FileManagerApp({ initialPath }: { initialPath: string }) {
             key={`${target.owner}/${target.repo}`}
             initialPath={filePath}
             title="Files"
-            subtitle={`${target.owner}/${target.repo}`}
+            subtitle=""
             routeBase="/"
             transport={transport}
+            headerActions={() => (
+              <div className="flex min-w-0 items-center gap-2">
+                <div className="w-32 min-w-0 sm:w-56">{repositoryPicker(true)}</div>
+                {settingsMenu(true)}
+              </div>
+            )}
           />
         </div>
       </QueryClientProvider>
