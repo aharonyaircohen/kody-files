@@ -48,6 +48,7 @@ Use it for a tree-based file workspace. Provider-specific paths, persistence, an
 ## Known limitations
 
 - GitHub-backed operations are subject to GitHub size, rate, SHA-conflict, and permission limits.
+- The included app sends uploads from the browser directly to GitHub to avoid the Vercel Function request limit; other operations use the same-origin API.
 - Preview support varies by format and available renderer.
 - Search and history are optional transport capabilities.
 - Unsaved local edits are not persisted until a successful transport save.

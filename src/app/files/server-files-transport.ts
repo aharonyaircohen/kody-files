@@ -1,6 +1,7 @@
-import { githubFileUrl } from "./file-paths";
-import type { CommitInfo, FileContent, FileEntry } from "./repo-files";
-import type { FilesTransport, FileWriteOptions, FileWriteResult } from "./transport";
+import { githubFileUrl } from "@/file-manager/lib/file-paths";
+import type { CommitInfo, FileContent, FileEntry } from "@/file-manager/lib/repo-files";
+import type { FilesTransport, FileWriteOptions, FileWriteResult } from "@/file-manager/lib/transport";
+import { uploadDirectlyToGitHub } from "./direct-github-upload";
 
 interface Target {
   owner: string;
@@ -31,24 +32,7 @@ export function createServerFilesTransport(owner: string, repo: string, token: s
       apiCall<FileWriteResult>(target, token, "writeFile", { path, content, expectedVersion: options?.expectedVersion }),
     deleteFile: (path, type) => apiCall<void>(target, token, "deleteFile", { path, type }),
     createFolder: (path) => apiCall<FileWriteResult>(target, token, "createFolder", { path }),
-    async uploadFile(path, file) {
-      const body = new FormData();
-      body.set("owner", owner);
-      body.set("repo", repo);
-      body.set("path", path);
-      body.set("file", file);
-      const response = await fetch("/api/files/upload", {
-        method: "POST",
-        body,
-        headers: { Authorization: `Bearer ${token}` },
-        cache: "no-store",
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw Object.assign(new Error(payload.error ?? "Upload failed"), { status: response.status });
-      }
-      return payload.result as FileWriteResult;
-    },
+    uploadFile: (path, file) => uploadDirectlyToGitHub(owner, repo, token, path, file),
     movePath: (mutation) => apiCall<void>(target, token, "movePath", { mutation }),
     duplicatePath: (mutation) => apiCall<void>(target, token, "duplicatePath", { mutation }),
     externalUrl: (path, type) => githubFileUrl(owner, repo, path, type),

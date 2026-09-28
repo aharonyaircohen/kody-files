@@ -128,3 +128,58 @@ test("accepts a persistent token, browses files, and forgets it", async ({ page,
   expect(await page.evaluate(() => localStorage.getItem("github-files-repository"))).toBeNull();
   expect(errors).toEqual([]);
 });
+
+test("uploads a file above Vercel's request limit directly to GitHub", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.addInitScript(() => {
+    localStorage.setItem("github-files-token", "test-token");
+    localStorage.setItem("github-files-repository", "octocat/hello-world");
+  });
+  await page.route("**/api/auth/token", (route) => route.fulfill({ json: { login: "octocat" } }));
+  await page.route("**/api/repos", (route) => route.fulfill({ json: { repositories: [
+    { owner: "octocat", repo: "hello-world", fullName: "octocat/hello-world", private: false },
+  ] } }));
+  await page.route("**/api/files", (route) => route.fulfill({ json: { result: [] } }));
+  let serverUploads = 0;
+  await page.route("**/api/files/upload", (route) => {
+    serverUploads += 1;
+    return route.fulfill({ status: 500 });
+  });
+  let githubWrites = 0;
+  await page.route("https://api.github.com/**", (route) => {
+    const request = route.request();
+    const corsHeaders = {
+      "access-control-allow-origin": "*",
+      "access-control-allow-methods": "GET, PUT, OPTIONS",
+      "access-control-allow-headers": "Authorization, Content-Type, Accept, X-GitHub-Api-Version",
+    };
+    if (request.method() === "OPTIONS") return route.fulfill({ status: 204, headers: corsHeaders });
+    expect(request.method()).toBe("PUT");
+    expect(request.url()).toBe("https://api.github.com/repos/octocat/hello-world/contents/large.bin");
+    expect(request.headers().authorization).toContain("test-token");
+    const body = request.postDataJSON();
+    expect(body.message).toBe("chore: upload large.bin");
+    expect(Buffer.from(body.content, "base64").length).toBe(5 * 1024 * 1024);
+    githubWrites += 1;
+    return route.fulfill({
+      status: 201,
+      headers: { ...corsHeaders, "content-type": "application/json" },
+      json: { content: { sha: "uploaded-sha" }, commit: { sha: "commit-sha" } },
+    });
+  });
+
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Files" })).toBeVisible();
+  await page.getByRole("button", { name: "More file actions" }).click();
+  await page.getByRole("menuitem", { name: "Upload" }).click();
+  await page.getByLabel("Choose files to upload").setInputFiles({
+    name: "large.bin",
+    mimeType: "application/octet-stream",
+    buffer: Buffer.alloc(5 * 1024 * 1024, 0x5a),
+  });
+  await expect(page.getByText("Uploaded large.bin")).toBeVisible();
+  expect(githubWrites).toBe(1);
+  expect(serverUploads).toBe(0);
+  expect(errors).toEqual([]);
+});

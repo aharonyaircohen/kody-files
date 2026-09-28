@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LogOut, SunMoon } from "lucide-react";
 import { FilesPage } from "@/file-manager";
-import { createServerFilesTransport } from "@/file-manager/lib/server-files-transport";
+import { createServerFilesTransport } from "./server-files-transport";
 import { Button } from "@/shared/ui/button";
 import { RepositoryPicker, type RepositoryChoice } from "./RepositoryPicker";
 import {
