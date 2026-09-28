@@ -9,6 +9,7 @@ import {
   confineRepoPathToRoot,
   currentFolderPath,
   duplicatePath,
+  filePathFromHref,
   githubFileUrl,
   isExpectedDeletedPath,
   joinRepoPath,
@@ -214,19 +215,19 @@ describe("githubFileUrl", () => {
 });
 
 describe("buildFileHref", () => {
-  it("returns the files root for an empty path", () => {
-    expect(buildFileHref("")).toBe("/files");
+  it("returns the app root for an empty path", () => {
+    expect(buildFileHref("")).toBe("/");
   });
 
   it("builds a nested file route", () => {
     expect(buildFileHref("src/components/Button.tsx")).toBe(
-      "/files/src/components/Button.tsx",
+      "/?path=src%2Fcomponents%2FButton.tsx",
     );
   });
 
   it("encodes URL-sensitive path segments", () => {
     expect(buildFileHref("docs/What now?.md")).toBe(
-      "/files/docs/What%20now%3F.md",
+      "/?path=docs%2FWhat%20now%3F.md",
     );
   });
 });
@@ -239,6 +240,13 @@ describe("buildWorkspaceFileHref", () => {
     expect(buildWorkspaceFileHref("/files", "What now?.html")).toBe(
       "/files/What%20now%3F.html",
     );
+  });
+
+  it("keeps repository paths separate from app API routes", () => {
+    expect(buildWorkspaceFileHref("/", "")).toBe("/");
+    expect(buildWorkspaceFileHref("/", "api/files")).toBe("/?path=api%2Ffiles");
+    expect(filePathFromHref("/?path=api%2Ffiles")).toBe("api/files");
+    expect(filePathFromHref("/api/files")).toBe("");
   });
 });
 

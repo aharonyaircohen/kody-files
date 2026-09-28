@@ -141,9 +141,7 @@ export function githubFileUrl(
 }
 
 export function buildFileHref(path: string | null | undefined): string {
-  const normalized = normalizeRepoPath(path ?? "");
-  if (!normalized) return "/files";
-  return `/files/${normalized.split("/").map(encodeURIComponent).join("/")}`;
+  return buildWorkspaceFileHref("/", path);
 }
 
 export function buildWorkspaceFileHref(
@@ -152,6 +150,9 @@ export function buildWorkspaceFileHref(
 ): string {
   const normalizedBase = `/${normalizeRepoPath(routeBase)}`;
   const normalizedPath = normalizeRepoPath(path ?? "");
+  if (normalizedBase === "/") {
+    return normalizedPath ? `/?path=${encodeURIComponent(normalizedPath)}` : "/";
+  }
   if (!normalizedPath) return normalizedBase;
   const encodedPath = normalizedPath
     .split("/")
@@ -184,20 +185,7 @@ export function repoPathOpenCandidates(path: string): string[] {
   return candidates;
 }
 
-export function filePathFromHref(pathname: string): string {
-  if (pathname === "/files") return "";
-  if (!pathname.startsWith("/files/")) return "";
-  return normalizeRepoPath(
-    pathname
-      .slice("/files/".length)
-      .split("/")
-      .map((part) => {
-        try {
-          return decodeURIComponent(part);
-        } catch {
-          return part;
-        }
-      })
-      .join("/"),
-  );
+export function filePathFromHref(href: string): string {
+  const url = new URL(href, "http://localhost");
+  return url.pathname === "/" ? normalizeRepoPath(url.searchParams.get("path") ?? "") : "";
 }

@@ -141,7 +141,7 @@ export function FileManagerApp({ initialPath }: { initialPath: string }) {
     queryClient.clear();
     setTarget({ owner: selected.owner, repo: selected.repo });
     setFilePath("");
-    window.History.prototype.replaceState.call(window.history, null, "", "/files");
+    window.History.prototype.replaceState.call(window.history, null, "", "/");
   }
 
   const choices = repositoryState.status === "ready" ? repositoryState.repositories : [];
@@ -234,7 +234,7 @@ export function FileManagerApp({ initialPath }: { initialPath: string }) {
             initialPath={filePath}
             title="Files"
             subtitle={`${target.owner}/${target.repo}`}
-            routeBase="/files"
+            routeBase="/"
             transport={transport}
           />
         </div>

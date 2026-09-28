@@ -33,6 +33,7 @@ test("accepts a persistent token, browses files, and forgets it", async ({ page,
   });
 
   await page.goto("/files");
+  await expect(page).toHaveURL("http://localhost:3335/");
   expect(await page.locator("html").getAttribute("data-theme")).toBe("dark");
   await expect(page.getByLabel("GitHub token")).toBeVisible();
   await page.getByLabel("GitHub token").fill("test-token");
@@ -44,14 +45,20 @@ test("accepts a persistent token, browses files, and forgets it", async ({ page,
   await page.reload();
   await expect(page.getByText("Signed in as octocat")).toBeVisible();
   await page.getByLabel("Repository").selectOption("octocat/hello-world");
+  await expect(page).toHaveURL("http://localhost:3335/");
   await expect(page.getByText("README.md").first()).toBeVisible();
   await page.getByText("README.md").first().click();
+  await expect(page).toHaveURL("http://localhost:3335/?path=README.md");
   await page.getByRole("button", { name: "View mode" }).click();
   await expect(page.locator(".prose h1")).toHaveText("Hello");
   await expect(page.locator(".prose strong")).toHaveText("formatted");
   const headingSize = await page.locator(".prose h1").evaluate((element) => getComputedStyle(element).fontSize);
   expect(Number.parseFloat(headingSize)).toBeGreaterThan(16);
+  await page.goBack();
+  await expect(page).toHaveURL("http://localhost:3335/");
+  await expect(page.locator(".prose h1")).toHaveCount(0);
   await page.getByLabel("Repository").selectOption("octocat/second");
+  await expect(page).toHaveURL("http://localhost:3335/");
   await expect(page.getByText("SECOND.md").first()).toBeVisible();
   await expect(page.getByText("README.md")).toHaveCount(0);
   expect(await page.evaluate(() => localStorage.getItem("github-files-repository"))).toBe("octocat/second");

@@ -1,10 +1,10 @@
-import { FileManagerApp } from "@/app/files/FileManagerApp";
+import { redirect } from "next/navigation";
 
-export default async function FilesRoute({
+export default async function LegacyFilesRoute({
   params,
 }: {
   params: Promise<{ path?: string[] }>;
 }) {
   const { path = [] } = await params;
-  return <FileManagerApp initialPath={path.join("/")} />;
+  redirect(path.length ? `/?path=${encodeURIComponent(path.join("/"))}` : "/");
 }

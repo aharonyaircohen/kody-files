@@ -7,7 +7,7 @@ test("reads a real GitHub repository with the entered token", async ({ page }) =
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("requestfailed", (request) => errors.push(`${request.method()} ${request.url()}`));
 
-  await page.goto("/files");
+  await page.goto("/");
   await page.getByLabel("GitHub token").fill(token!);
   await page.getByRole("button", { name: "Continue" }).click();
   await expect(page.getByText("Signed in as aharonyaircohen")).toBeVisible({ timeout: 20_000 });
@@ -15,6 +15,7 @@ test("reads a real GitHub repository with the entered token", async ({ page }) =
   await page.getByLabel("Repository").selectOption("aharonyaircohen/kody-chat");
   await expect(page.getByText("README.md").first()).toBeVisible({ timeout: 20_000 });
   await page.getByText("README.md").first().click();
+  await expect(page).toHaveURL("http://localhost:3335/?path=README.md");
   await page.getByRole("button", { name: "View mode" }).click();
   await expect(page.locator(".prose h1")).toContainText("Kody");
   expect(errors).toEqual([]);

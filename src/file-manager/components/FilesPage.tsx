@@ -330,7 +330,7 @@ export function FilesPage({
           : normalizedPath;
       const workspaceHref = buildWorkspaceFileHref(routeBase, relativePath);
       const href = resolveHref(workspaceHref);
-      if (typeof window !== "undefined" && window.location.pathname === href) {
+      if (typeof window !== "undefined" && `${window.location.pathname}${window.location.search}` === href) {
         return;
       }
 
@@ -521,8 +521,9 @@ export function FilesPage({
     const handlePopState = () => {
       const routeMarker = `${routeBase}/`;
       const markerIndex = window.location.pathname.lastIndexOf(routeMarker);
-      const routePath =
-        markerIndex >= 0
+      const routePath = routeBase === "/"
+        ? normalizeRepoPath(new URLSearchParams(window.location.search).get("path") ?? "")
+        : markerIndex >= 0
           ? normalizeRepoPath(
               window.location.pathname.slice(markerIndex + routeMarker.length),
             )
